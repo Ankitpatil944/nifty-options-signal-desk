@@ -1,0 +1,91 @@
+# Central configuration. Secrets (API keys, Telegram token) live in backend/.env, never here.
+#
+# Exchange parameters (lot sizes, expiry days, statutory charges) change from time to time.
+# Values below were current at the time of writing - verify against NSE / Zerodha before relying on them.
+
+timezone: Asia/Kolkata
+data_dir: data
+
+session:
+  market_open: "09:15"
+  market_close: "15:30"
+  # Signals are only generated inside this window.
+  entry_start: "09:20"
+  entry_end: "12:00"
+  # Anything still open is closed at this time (backtest and journal tracking).
+  square_off: "15:10"
+
+instruments:
+  NIFTY:
+    kite_token: 256265          # NSE:NIFTY 50
+    kite_symbol: "NSE:NIFTY 50"
+    option_prefix: NIFTY
+    lot_size: 65
+    strike_step: 50
+    expiry: weekly              # weekly | monthly
+    expiry_weekday: 1           # 0=Mon ... 1=Tue
+    iv: 0.13                    # annualised IV used when no live option quote is available
+    slippage_points: 1.0
+  BANKNIFTY:
+    kite_token: 260105          # NSE:NIFTY BANK
+    kite_symbol: "NSE:NIFTY BANK"
+    option_prefix: BANKNIFTY
+    lot_size: 30
+    strike_step: 100
+    expiry: monthly
+    expiry_weekday: 1
+    iv: 0.15
+    slippage_points: 3.0
+
+candle_interval: 5              # minutes
+
+# Charges per side, as fractions of turnover unless noted. Conservative (higher) values on purpose.
+costs:
+  brokerage_per_order: 20.0     # Zerodha flat fee per executed F&O order (INR)
+  options:
+    stt_sell: 0.0015            # on premium, sell side
+    exchange_txn: 0.0003503     # NSE, on premium
+    stamp_buy: 0.00003
+    slippage_per_unit: 0.5      # INR per option unit per side
+  futures:
+    stt_sell: 0.0005
+    exchange_txn: 0.0000173
+    stamp_buy: 0.00002
+  sebi_fee: 0.000001            # INR 10 per crore
+  gst: 0.18                     # on brokerage + exchange + SEBI
+
+risk:
+  capital: 500000               # one NIFTY lot at a typical ORB stop risks ~INR 3-4k
+  risk_per_trade_pct: 1.0       # % of current equity lost if the stop is hit
+  max_daily_loss_pct: 3.0       # stop suggesting for the day after this
+  max_trades_per_day: 4
+  max_open_positions: 2
+  max_lots: 10
+
+# How a directional index signal is expressed as a trade.
+#   buy:  LONG -> buy CE, SHORT -> buy PE
+#   sell: LONG -> bull put credit spread, SHORT -> bear call credit spread (defined risk)
+options:
+  mode: buy
+  buy_moneyness: 0              # strikes away from ATM (positive = OTM)
+  sell_short_offset: 1          # short leg strikes OTM
+  spread_width: 4               # strikes between short and long (hedge) leg
+  min_days_to_expiry: 0.5       # roll to the next expiry when closer than this
+
+strategies:
+  orb:
+    enabled: true
+    params: {range_minutes: 15, rr: 2.0, stop_buffer_pct: 0.0005, max_range_pct: 0.008}
+  ema_trend:
+    enabled: true
+    params: {fast: 9, slow: 21, atr_period: 14, atr_stop: 1.5, rr: 2.0}
+  vwap_reversion:
+    enabled: true
+    params: {band_atr: 2.0, atr_period: 14, rsi_period: 14, rsi_low: 25, rsi_high: 75, atr_stop: 1.0}
+
+telegram:
+  enabled: true                 # also requires TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env
+
+api:
+  host: 127.0.0.1
+  port: 8000
